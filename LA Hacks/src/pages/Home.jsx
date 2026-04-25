@@ -124,40 +124,71 @@ export default function Home() {
     setGoogleLoading(true)
     try {
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-      const newEvents = events.filter(e => !e.googleEventId)
-      const rescheduledEvents = events.filter(e => e.googleEventId)
+
+      const eventsWithDates = events.filter(e => e.date)
+      if (eventsWithDates.length === 0) {
+        setGoogleMessage('No events to export.')
+        return
+      }
+
+      const timestamps = eventsWithDates.map(e => new Date(e.date + 'T00:00:00').getTime())
+      const rangeStart = new Date(Math.min(...timestamps))
+      const rangeEnd = new Date(Math.max(...timestamps))
+      rangeEnd.setDate(rangeEnd.getDate() + 1)
+
+      const gcalEvents = await fetchGoogleEvents(rangeStart.toISOString(), rangeEnd.toISOString())
+      const gcalById = new Map(gcalEvents.map(ge => [ge.id, ge]))
+
+      const gcalByKey = new Map()
+      for (const ge of gcalEvents) {
+        if (!ge.start?.dateTime) continue
+        const s = new Date(ge.start.dateTime)
+        const key = `${ge.summary}|${s.getFullYear()}-${pad(s.getMonth() + 1)}-${pad(s.getDate())}|${pad(s.getHours())}:${pad(s.getMinutes())}`
+        gcalByKey.set(key, ge)
+      }
+
       let exported = 0
       let updated = 0
+      let skipped = 0
 
-      for (const event of newEvents) {
-        const created = await createGoogleEvent({
-          summary: event.title,
-          description: 'Exported from StudySync',
-          start: { dateTime: `${event.date}T${event.startTime}:00`, timeZone },
-          end: { dateTime: `${event.date}T${event.endTime}:00`, timeZone },
-          extendedProperties: { private: { studysync_type: event.type } },
-        })
-        await updateEvent(event.id, { googleEventId: created.id })
-        exported += 1
-      }
-
-      for (const event of rescheduledEvents) {
-        await updateGoogleEvent(event.googleEventId, {
+      for (const event of eventsWithDates) {
+        const gcalPayload = {
           summary: event.title,
           start: { dateTime: `${event.date}T${event.startTime}:00`, timeZone },
           end: { dateTime: `${event.date}T${event.endTime}:00`, timeZone },
           extendedProperties: { private: { studysync_type: event.type } },
-        })
-        updated += 1
+        }
+
+        if (event.googleEventId) {
+          if (gcalById.has(event.googleEventId)) {
+            await updateGoogleEvent(event.googleEventId, gcalPayload)
+            updated += 1
+          } else {
+            const created = await createGoogleEvent({ ...gcalPayload, description: 'Exported from StudySync' })
+            await updateEvent(event.id, { googleEventId: created.id })
+            exported += 1
+          }
+        } else {
+          const key = `${event.title}|${event.date}|${event.startTime}`
+          if (gcalByKey.has(key)) {
+            await updateEvent(event.id, { googleEventId: gcalByKey.get(key).id })
+            skipped += 1
+          } else {
+            const created = await createGoogleEvent({ ...gcalPayload, description: 'Exported from StudySync' })
+            await updateEvent(event.id, { googleEventId: created.id })
+            exported += 1
+          }
+        }
       }
 
-      if (exported === 0 && updated === 0) {
+      if (exported === 0 && updated === 0 && skipped === 0) {
         setGoogleMessage('No events to export.')
       } else {
         const parts = []
         if (exported > 0) parts.push(`Exported ${exported} new event${exported !== 1 ? 's' : ''}`)
-        if (updated > 0) parts.push(`updated ${updated} rescheduled event${updated !== 1 ? 's' : ''}`)
-        setGoogleMessage(parts.join(', ') + ' on Google Calendar.')
+        if (updated > 0) parts.push(`updated ${updated} event${updated !== 1 ? 's' : ''}`)
+        if (skipped > 0) parts.push(`${skipped} already in Google Calendar`)
+        setGoogleMessage(parts.join(', ') + '.')
       }
     } catch (error) {
       setGoogleMessage(error.message || 'Export to Google failed')
