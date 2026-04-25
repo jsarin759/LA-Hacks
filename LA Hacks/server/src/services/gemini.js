@@ -16,7 +16,13 @@ Rules:
 - Respect the time window ${timeRange.start} to ${timeRange.end}.
 - Only schedule on these days: ${selectedDays.join(', ')}.
 - Try to distribute time across subjects.
-- Prefer sessions between 30 and 90 minutes.
+- Follow a flexible Pomodoro rhythm:
+  - Each study session must be 25 to 45 minutes.
+  - Never return 60-minute or other non-Pomodoro session lengths.
+  - Leave a 5 to 15 minute break after each study session, represented as a free gap (do not output break events).
+  - If multiple study sessions are adjacent in the same day, ensure at least a 5-minute gap between endTime of one and startTime of the next.
+  - After classes or other existing events, leave enough transition time before the next study session (at least 10 minutes, and prefer 15 to 30 minutes for meals/rest).
+  - Avoid placing study sessions immediately before and immediately after meal-related events without a break buffer.
 
 Existing events:
 ${JSON.stringify(existingEvents, null, 2)}
@@ -95,6 +101,6 @@ export async function generateStudyScheduleWithGemini({ existingEvents, subjects
   return schedule.filter(item => {
     const start = toMinutes(item.startTime)
     const end = toMinutes(item.endTime)
-    return Number.isFinite(item.day) && end > start && end - start >= 30
+    return Number.isFinite(item.day) && end > start && end - start >= 25 && end - start <= 45
   })
 }
