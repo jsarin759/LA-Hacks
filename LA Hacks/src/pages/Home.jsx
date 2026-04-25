@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import WeekCalendar from '../components/WeekCalendar'
 import EventModal from '../components/EventModal'
@@ -19,19 +19,21 @@ function mapGoogleEventToLocal(event) {
   const start = new Date(startDateTime)
   const end = new Date(endDateTime)
   const date = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`
+  const type = event.extendedProperties?.private?.studysync_type ?? 'class'
   return {
     title: event.summary || 'Google Event',
-    type: 'class',
+    type,
     date,
     day: start.getDay(),
     startTime: toTime(start),
     endTime: toTime(end),
+    googleEventId: event.id,
   }
 }
 
 export default function Home() {
   const navigate = useNavigate()
-  const { events, addEvent, updateEvent, removeEvent, replaceAllEvents } = useSchedule()
+  const { events, addEvent, addEvents, updateEvent, removeEvent } = useSchedule()
   const {
     user,
     signOut,
@@ -45,6 +47,18 @@ export default function Home() {
   const [showGenerate, setShowGenerate] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleMessage, setGoogleMessage] = useState('')
+  const [googleMenuOpen, setGoogleMenuOpen] = useState(false)
+  const googleMenuRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (googleMenuRef.current && !googleMenuRef.current.contains(e.target)) {
+        setGoogleMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleSave = (formData) => {
     if (editingEvent?.id) {
@@ -88,12 +102,14 @@ export default function Home() {
       const googleEvents = await fetchGoogleEvents(now.toISOString(), weekEnd.toISOString())
       const mapped = googleEvents.map(mapGoogleEventToLocal).filter(Boolean)
 
-      await replaceAllEvents(mapped)
+      const existingGoogleIds = new Set(events.map(e => e.googleEventId).filter(Boolean))
+      const newEvents = mapped.filter(e => !existingGoogleIds.has(e.googleEventId))
 
-      if (mapped.length === 0) {
-        setGoogleMessage('Schedule cleared. No timed Google events found in the next 7 days.')
+      if (newEvents.length === 0) {
+        setGoogleMessage('All Google events are already on your calendar.')
       } else {
-        setGoogleMessage(`Schedule replaced with ${mapped.length} Google events.`)
+        await addEvents(newEvents)
+        setGoogleMessage(`Added ${newEvents.length} new event${newEvents.length !== 1 ? 's' : ''} from Google Calendar.`)
       }
     } catch (error) {
       setGoogleMessage(error.message || 'Import from Google failed')
@@ -107,17 +123,24 @@ export default function Home() {
     setGoogleLoading(true)
     try {
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const toExport = events.filter(e => !e.googleEventId)
       let exported = 0
-      for (const event of events) {
-        await createGoogleEvent({
+      for (const event of toExport) {
+        const created = await createGoogleEvent({
           summary: event.title,
           description: 'Exported from StudySync',
           start: { dateTime: `${event.date}T${event.startTime}:00`, timeZone },
           end: { dateTime: `${event.date}T${event.endTime}:00`, timeZone },
+          extendedProperties: { private: { studysync_type: event.type } },
         })
+        await updateEvent(event.id, { googleEventId: created.id })
         exported += 1
       }
-      setGoogleMessage(`Exported ${exported} events to Google Calendar.`)
+      if (exported === 0) {
+        setGoogleMessage('All events have already been exported to Google Calendar.')
+      } else {
+        setGoogleMessage(`Exported ${exported} new event${exported !== 1 ? 's' : ''} to Google Calendar.`)
+      }
     } catch (error) {
       setGoogleMessage(error.message || 'Export to Google failed')
     } finally {
@@ -134,17 +157,44 @@ export default function Home() {
         </div>
         <div className="header-actions">
           <span className="header-email">{user?.email}</span>
-          <button className="btn-secondary" onClick={handleGoogleConnectToggle} disabled={googleLoading}>
-            {googleCalendarConnected ? 'Disconnect Google' : 'Connect Google'}
-          </button>
-          <button className="btn-secondary" onClick={handleImportGoogle} disabled={!googleCalendarConnected || googleLoading}>
-            Import Google
-          </button>
-          <button className="btn-secondary" onClick={handleExportGoogle} disabled={!googleCalendarConnected || googleLoading}>
-            Export Google
-          </button>
+          <div className="google-dropdown" ref={googleMenuRef}>
+            <button
+              className={`btn-secondary google-dropdown-trigger ${googleCalendarConnected ? 'connected' : ''}`}
+              onClick={() => setGoogleMenuOpen(o => !o)}
+              disabled={googleLoading}
+            >
+              Google Calendar {googleCalendarConnected ? '●' : '○'} ▾
+            </button>
+            {googleMenuOpen && (
+              <div className="google-dropdown-menu">
+                <button
+                  className="dropdown-item"
+                  onClick={() => { setGoogleMenuOpen(false); handleGoogleConnectToggle() }}
+                >
+                  {googleCalendarConnected ? 'Disconnect' : 'Connect'}
+                </button>
+                {googleCalendarConnected && (
+                  <>
+                    <div className="dropdown-divider" />
+                    <button
+                      className="dropdown-item"
+                      onClick={() => { setGoogleMenuOpen(false); handleImportGoogle() }}
+                    >
+                      Import from Google
+                    </button>
+                    <button
+                      className="dropdown-item"
+                      onClick={() => { setGoogleMenuOpen(false); handleExportGoogle() }}
+                    >
+                      Export to Google
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
           <button className="btn-secondary" onClick={() => navigate('/schedule')}>
-            Manage Schedule
+            View Schedule List
           </button>
           <button className="btn-primary" onClick={() => setShowGenerate(true)}>
             ✦ Generate Study Plan

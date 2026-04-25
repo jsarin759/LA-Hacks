@@ -30,6 +30,7 @@ function fromDB(row) {
     day: start.getDay(),
     startTime: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
     endTime: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
+    googleEventId: row.google_event_id ?? null,
   }
 }
 
@@ -43,6 +44,7 @@ function toDB(event) {
     row.start_at = `${event.date}T${event.startTime}:00${tz}`
   if (event.date !== undefined && event.endTime !== undefined)
     row.end_at = `${event.date}T${event.endTime}:00${tz}`
+  if (event.googleEventId !== undefined) row.google_event_id = event.googleEventId
   return row
 }
 

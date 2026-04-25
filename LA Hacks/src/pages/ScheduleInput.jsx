@@ -3,12 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useSchedule } from '../context/ScheduleContext'
 import EventModal from '../components/EventModal'
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const TYPE_COLORS = {
   class:    '#6366f1',
   study:    '#10b981',
   work:     '#f59e0b',
   personal: '#8b5cf6',
+}
+
+function formatDateHeader(dateStr) {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
 }
 
 export default function ScheduleInput() {
@@ -34,12 +39,23 @@ export default function ScheduleInput() {
     (a.startAt ?? '').localeCompare(b.startAt ?? '')
   )
 
+  // Group by date
+  const groups = []
+  for (const event of sorted) {
+    const last = groups[groups.length - 1]
+    if (last && last.date === event.date) {
+      last.events.push(event)
+    } else {
+      groups.push({ date: event.date, events: [event] })
+    }
+  }
+
   return (
     <div className="page">
       <header className="app-header">
         <div className="header-left">
           <button className="back-btn" onClick={() => navigate('/')}>← Back to Calendar</button>
-          <h1 className="app-title">Manage Schedule</h1>
+          <h1 className="app-title">Schedule List</h1>
         </div>
         <button className="btn-primary" onClick={() => setEditingEvent({})}>
           + Add Event
@@ -47,7 +63,7 @@ export default function ScheduleInput() {
       </header>
 
       <main className="schedule-list-container">
-        {sorted.length === 0 ? (
+        {groups.length === 0 ? (
           <div className="empty-state">
             <div>No events yet. Add your classes, work hours, and other commitments to get started.</div>
             <button className="btn-primary" onClick={() => setEditingEvent({})}>
@@ -56,21 +72,24 @@ export default function ScheduleInput() {
           </div>
         ) : (
           <div className="event-list">
-            {sorted.map(event => (
-              <div key={event.id} className="event-list-item" onClick={() => setEditingEvent(event)}>
-                <div
-                  className="event-type-badge"
-                  style={{ backgroundColor: TYPE_COLORS[event.type] ?? '#6366f1' }}
-                >
-                  {event.type}
-                </div>
-                <div className="event-info">
-                  <span className="event-name">{event.title}</span>
-                  <span className="event-details">
-                    {DAYS[event.day]} {event.date} · {event.startTime} – {event.endTime}
-                  </span>
-                </div>
-                {event.generated && <span className="generated-badge">Generated</span>}
+            {groups.map(group => (
+              <div key={group.date} className="event-date-group">
+                <h3 className="event-date-header">{formatDateHeader(group.date)}</h3>
+                {group.events.map(event => (
+                  <div
+                    key={event.id}
+                    className="event-row"
+                    style={{ borderLeftColor: TYPE_COLORS[event.type] ?? '#6366f1' }}
+                    onClick={() => setEditingEvent(event)}
+                  >
+                    <div className="event-row-main">
+                      <span className="event-row-title">{event.title}</span>
+                      <span className="event-row-type">{event.type}</span>
+                      {event.generated && <span className="generated-badge">Generated</span>}
+                    </div>
+                    <span className="event-row-time">{event.startTime} – {event.endTime}</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
