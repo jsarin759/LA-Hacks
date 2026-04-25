@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from './AuthContext'
 
 const ScheduleContext = createContext()
 
@@ -26,25 +27,40 @@ function toDB(event) {
   return row
 }
 
+async function getUserId() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id ?? null
+}
+
 export function ScheduleProvider({ children }) {
+  const { user } = useAuth()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase
-      .from('events')
-      .select('*')
-      .order('day')
-      .then(({ data, error }) => {
-        if (!error && data) setEvents(data.map(fromDB))
-        setLoading(false)
-      })
-  }, [])
+    if (!user) {
+      setEvents([])
+      setLoading(false)
+      return
+    }
+    async function load() {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('day')
+      if (!error && data) setEvents(data.map(fromDB))
+      setLoading(false)
+    }
+    load()
+  }, [user?.id])
 
   const addEvent = async (event) => {
+    const userId = await getUserId()
     const { data, error } = await supabase
       .from('events')
-      .insert(toDB(event))
+      .insert({ ...toDB(event), user_id: userId })
       .select()
       .single()
     if (error) { console.error('addEvent failed:', error.message); return }
@@ -52,9 +68,10 @@ export function ScheduleProvider({ children }) {
   }
 
   const addEvents = async (eventsToAdd) => {
+    const userId = await getUserId()
     const { data, error } = await supabase
       .from('events')
-      .insert(eventsToAdd.map(toDB))
+      .insert(eventsToAdd.map(e => ({ ...toDB(e), user_id: userId })))
       .select()
     if (error) { console.error('addEvents failed:', error.message); return }
     const mapped = data.map((row, i) => ({ ...fromDB(row), generated: eventsToAdd[i]?.generated ?? false }))
@@ -62,7 +79,6 @@ export function ScheduleProvider({ children }) {
   }
 
   const updateEvent = async (id, updates) => {
-    // Optimistically update UI, then sync to DB
     setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
     await supabase.from('events').update(toDB(updates)).eq('id', id)
   }
@@ -74,7 +90,6 @@ export function ScheduleProvider({ children }) {
 
   const clearGeneratedEvents = async () => {
     setEvents(prev => prev.filter(e => !e.generated))
-    await supabase.from('events').delete().eq('generated', true)
   }
 
   return (
