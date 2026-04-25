@@ -31,7 +31,7 @@ export default function ScheduleInput() {
   }
 
   const sorted = [...events].sort((a, b) =>
-    a.day !== b.day ? a.day - b.day : a.startTime.localeCompare(b.startTime)
+    (a.startAt ?? '').localeCompare(b.startAt ?? '')
   )
 
   return (
@@ -67,7 +67,7 @@ export default function ScheduleInput() {
                 <div className="event-info">
                   <span className="event-name">{event.title}</span>
                   <span className="event-details">
-                    {DAYS[event.day]} · {event.startTime} – {event.endTime}
+                    {DAYS[event.day]} {event.date} · {event.startTime} – {event.endTime}
                   </span>
                 </div>
                 {event.generated && <span className="generated-badge">Generated</span>}

@@ -6,46 +6,23 @@ import GenerateModal from '../components/GenerateModal'
 import { useSchedule } from '../context/ScheduleContext'
 import { useAuth } from '../context/AuthContext'
 
-function toTime(value) {
-  return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`
-}
+const pad = n => String(n).padStart(2, '0')
 
-function nextDateForWeekday(weekday) {
-  const now = new Date()
-  const next = new Date(now)
-  next.setHours(0, 0, 0, 0)
-
-  const today = now.getDay()
-  let daysAhead = weekday - today
-  if (daysAhead < 0) {
-    daysAhead += 7
-  }
-
-  next.setDate(next.getDate() + daysAhead)
-  return next
-}
-
-function withTime(baseDate, hhmm) {
-  const [hours, minutes] = hhmm.split(':').map(Number)
-  const next = new Date(baseDate)
-  next.setHours(hours, minutes, 0, 0)
-  return next
+function toTime(date) {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function mapGoogleEventToLocal(event) {
   const startDateTime = event?.start?.dateTime
   const endDateTime = event?.end?.dateTime
-
-  if (!startDateTime || !endDateTime) {
-    return null
-  }
-
+  if (!startDateTime || !endDateTime) return null
   const start = new Date(startDateTime)
   const end = new Date(endDateTime)
-
+  const date = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`
   return {
     title: event.summary || 'Google Event',
     type: 'class',
+    date,
     day: start.getDay(),
     startTime: toTime(start),
     endTime: toTime(end),
@@ -129,23 +106,17 @@ export default function Home() {
     setGoogleMessage('')
     setGoogleLoading(true)
     try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
       let exported = 0
-
       for (const event of events) {
-        const date = nextDateForWeekday(event.day)
-        const start = withTime(date, event.startTime)
-        const end = withTime(date, event.endTime)
-
         await createGoogleEvent({
           summary: event.title,
           description: 'Exported from StudySync',
-          start: { dateTime: start.toISOString() },
-          end: { dateTime: end.toISOString() },
+          start: { dateTime: `${event.date}T${event.startTime}:00`, timeZone },
+          end: { dateTime: `${event.date}T${event.endTime}:00`, timeZone },
         })
-
         exported += 1
       }
-
       setGoogleMessage(`Exported ${exported} events to Google Calendar.`)
     } catch (error) {
       setGoogleMessage(error.message || 'Export to Google failed')

@@ -3,16 +3,24 @@ import { useState } from 'react'
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const EVENT_TYPES = ['class', 'study', 'work', 'personal']
 
+const today = new Date().toISOString().split('T')[0]
+
 export default function EventModal({ event, onSave, onDelete, onClose }) {
   const [form, setForm] = useState({
     title: event?.title ?? '',
     type: event?.type ?? 'class',
-    day: event?.day ?? 1,
+    date: event?.date ?? today,
+    day: event?.day ?? new Date().getDay(),
     startTime: event?.startTime ?? '09:00',
     endTime: event?.endTime ?? '10:00',
   })
 
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+
+  const setDate = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00')
+    setForm(f => ({ ...f, date: dateStr, day: d.getDay() }))
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -53,10 +61,13 @@ export default function EventModal({ event, onSave, onDelete, onClose }) {
               </select>
             </div>
             <div className="form-group">
-              <label>Day</label>
-              <select value={form.day} onChange={e => set('day', Number(e.target.value))}>
-                {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-              </select>
+              <label>Date</label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => setDate(e.target.value)}
+                required
+              />
             </div>
           </div>
 

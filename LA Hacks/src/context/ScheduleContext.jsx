@@ -4,26 +4,45 @@ import { useAuth } from './AuthContext'
 
 const ScheduleContext = createContext()
 
+const pad = n => String(n).padStart(2, '0')
+
+// Returns the local UTC offset as a string like "-07:00" or "+05:30"
+function localTzOffset() {
+  const off = -new Date().getTimezoneOffset() // minutes, positive = UTC+
+  const sign = off >= 0 ? '+' : '-'
+  const abs = Math.abs(off)
+  return `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+}
+
 // DB row → JS object
+// new Date() works correctly here because toDB now stores the local timezone offset,
+// so the TIMESTAMPTZ in Supabase represents the right UTC instant.
 function fromDB(row) {
+  const start = new Date(row.start_at)
+  const end = new Date(row.end_at)
   return {
     id: row.id,
     title: row.event_title,
     type: row.event_type,
-    day: row.day,
-    startTime: row.event_starttime,
-    endTime: row.event_endtime,
+    startAt: row.start_at,
+    endAt: row.end_at,
+    date: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
+    day: start.getDay(),
+    startTime: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+    endTime: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
   }
 }
 
-// JS object → DB row (only includes defined fields so partial updates are safe)
+// JS object → DB row
 function toDB(event) {
   const row = {}
-  if (event.title !== undefined)     row.event_title = event.title
-  if (event.type !== undefined)      row.event_type = event.type
-  if (event.day !== undefined)       row.day = event.day
-  if (event.startTime !== undefined) row.event_starttime = event.startTime
-  if (event.endTime !== undefined)   row.event_endtime = event.endTime
+  if (event.title !== undefined) row.event_title = event.title
+  if (event.type !== undefined) row.event_type = event.type
+  const tz = localTzOffset()
+  if (event.date !== undefined && event.startTime !== undefined)
+    row.start_at = `${event.date}T${event.startTime}:00${tz}`
+  if (event.date !== undefined && event.endTime !== undefined)
+    row.end_at = `${event.date}T${event.endTime}:00${tz}`
   return row
 }
 
@@ -49,7 +68,7 @@ export function ScheduleProvider({ children }) {
         .from('events')
         .select('*')
         .eq('user_id', user.id)
-        .order('day')
+        .order('start_at')
       if (!error && data) setEvents(data.map(fromDB))
       setLoading(false)
     }
@@ -79,8 +98,13 @@ export function ScheduleProvider({ children }) {
   }
 
   const updateEvent = async (id, updates) => {
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
-    await supabase.from('events').update(toDB(updates)).eq('id', id)
+    const existing = events.find(e => e.id === id)
+    if (!existing) return
+    const merged = { ...existing, ...updates }
+    const start_at = `${merged.date}T${merged.startTime}:00`
+    const end_at = `${merged.date}T${merged.endTime}:00`
+    setEvents(prev => prev.map(e => e.id === id ? { ...merged, startAt: start_at, endAt: end_at } : e))
+    await supabase.from('events').update(toDB(merged)).eq('id', id)
   }
 
   const removeEvent = async (id) => {

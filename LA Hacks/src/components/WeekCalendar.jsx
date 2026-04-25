@@ -26,23 +26,45 @@ function minutesToTime(m) {
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
 }
 
+function getWeekSunday(date) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - d.getDay())
+  return d
+}
+
+function toDateString(date) {
+  const p = n => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
+}
+
 export default function WeekCalendar({ onEventClick, onSlotClick }) {
   const { events, updateEvent } = useSchedule()
   const [dragState, setDragState] = useState(null)
+  const [weekStart, setWeekStart] = useState(() => getWeekSunday(new Date()))
   const columnRefs = useRef([])
   const scrollRef = useRef(null)
 
   useEffect(() => {
     if (scrollRef.current) {
-      // scroll to 8 AM on mount
       scrollRef.current.scrollTop = (8 - START_HOUR) * HOUR_HEIGHT
     }
   }, [])
 
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart)
+    d.setDate(weekStart.getDate() + i)
+    return d
+  })
+
+  const todayStr = toDateString(new Date())
+  const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT
+
+  const monthLabel = weekDates[3].toLocaleString('default', { month: 'long', year: 'numeric' })
+
   const handleDragStart = (e, event) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const offsetY = e.clientY - rect.top
-    setDragState({ id: event.id, offsetY })
+    setDragState({ id: event.id, offsetY: e.clientY - rect.top })
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', event.id)
   }
@@ -53,8 +75,7 @@ export default function WeekCalendar({ onEventClick, onSlotClick }) {
     const colEl = columnRefs.current[dayIndex]
     if (!colEl) return
 
-    const colRect = colEl.getBoundingClientRect()
-    const rawY = e.clientY - colRect.top - dragState.offsetY
+    const rawY = e.clientY - colEl.getBoundingClientRect().top - dragState.offsetY
     const snappedMin = Math.round((rawY / PX_PER_MIN) / 15) * 15
     const startMin = Math.max(START_HOUR * 60, START_HOUR * 60 + snappedMin)
 
@@ -65,7 +86,7 @@ export default function WeekCalendar({ onEventClick, onSlotClick }) {
     const endMin = Math.min(startMin + duration, END_HOUR * 60)
 
     updateEvent(dragState.id, {
-      day: dayIndex,
+      date: toDateString(weekDates[dayIndex]),
       startTime: minutesToTime(startMin),
       endTime: minutesToTime(endMin),
     })
@@ -76,27 +97,38 @@ export default function WeekCalendar({ onEventClick, onSlotClick }) {
     if (e.target.closest('[data-event-block]')) return
     const colEl = columnRefs.current[dayIndex]
     if (!colEl) return
-    const colRect = colEl.getBoundingClientRect()
-    const y = e.clientY - colRect.top
+    const y = e.clientY - colEl.getBoundingClientRect().top
     const snappedMin = Math.round((y / PX_PER_MIN) / 30) * 30
     const startMin = START_HOUR * 60 + Math.max(0, snappedMin)
     onSlotClick?.({
+      date: toDateString(weekDates[dayIndex]),
       day: dayIndex,
       startTime: minutesToTime(startMin),
       endTime: minutesToTime(Math.min(startMin + 60, END_HOUR * 60)),
     })
   }
 
-  const today = new Date().getDay()
-  const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT
+  const shiftWeek = (delta) => setWeekStart(d => {
+    const n = new Date(d)
+    n.setDate(d.getDate() + delta * 7)
+    return n
+  })
 
   return (
     <div className="cal-wrapper">
+      <div className="cal-nav">
+        <button className="btn-secondary" onClick={() => shiftWeek(-1)}>← Prev</button>
+        <button className="btn-secondary" onClick={() => setWeekStart(getWeekSunday(new Date()))}>Today</button>
+        <span className="cal-month-label">{monthLabel}</span>
+        <button className="btn-secondary" onClick={() => shiftWeek(1)}>Next →</button>
+      </div>
+
       <div className="cal-header">
         <div className="cal-gutter-header" />
-        {DAYS.map((day, i) => (
-          <div key={day} className={`cal-day-header ${i === today ? 'cal-today-header' : ''}`}>
-            {day}
+        {weekDates.map((date, i) => (
+          <div key={i} className={`cal-day-header ${toDateString(date) === todayStr ? 'cal-today-header' : ''}`}>
+            <span>{DAYS[i]}</span>
+            <span className="cal-day-num">{date.getDate()}</span>
           </div>
         ))}
       </div>
@@ -111,23 +143,24 @@ export default function WeekCalendar({ onEventClick, onSlotClick }) {
             ))}
           </div>
 
-          {DAYS.map((day, dayIndex) => (
-            <div
-              key={day}
-              ref={el => (columnRefs.current[dayIndex] = el)}
-              className={`cal-day-col ${dayIndex === today ? 'cal-today-col' : ''}`}
-              style={{ height: totalHeight }}
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => handleDrop(e, dayIndex)}
-              onClick={e => handleColumnClick(e, dayIndex)}
-            >
-              {HOURS.map(h => (
-                <div key={h} className="cal-hour-row" style={{ height: HOUR_HEIGHT }} />
-              ))}
+          {weekDates.map((date, dayIndex) => {
+            const dateStr = toDateString(date)
+            const dayEvents = events.filter(ev => ev.date === dateStr)
+            return (
+              <div
+                key={dayIndex}
+                ref={el => (columnRefs.current[dayIndex] = el)}
+                className={`cal-day-col ${dateStr === todayStr ? 'cal-today-col' : ''}`}
+                style={{ height: totalHeight }}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => handleDrop(e, dayIndex)}
+                onClick={e => handleColumnClick(e, dayIndex)}
+              >
+                {HOURS.map(h => (
+                  <div key={h} className="cal-hour-row" style={{ height: HOUR_HEIGHT }} />
+                ))}
 
-              {events
-                .filter(ev => ev.day === dayIndex)
-                .map(ev => {
+                {dayEvents.map(ev => {
                   const startMin = timeToMinutes(ev.startTime)
                   const endMin = timeToMinutes(ev.endTime)
                   const top = (startMin - START_HOUR * 60) * PX_PER_MIN
@@ -151,8 +184,9 @@ export default function WeekCalendar({ onEventClick, onSlotClick }) {
                     </div>
                   )
                 })}
-            </div>
-          ))}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
