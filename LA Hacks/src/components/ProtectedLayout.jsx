@@ -6,7 +6,7 @@ export default function ProtectedLayout() {
   const { user, loading } = useAuth()
 
   if (loading) return <div className="auth-loading">Loading…</div>
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/welcome" replace />
 
   return (
     <ScheduleProvider>

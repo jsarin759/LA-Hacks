@@ -5,6 +5,7 @@ import Home from './pages/Home'
 import ScheduleInput from './pages/ScheduleInput'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import Welcome from './pages/Welcome'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import GoogleCallback from './pages/GoogleCallback'
@@ -15,6 +16,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/welcome" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
