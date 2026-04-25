@@ -42,6 +42,7 @@ export default function Home() {
     disconnectGoogleCalendar,
     fetchGoogleEvents,
     createGoogleEvent,
+    updateGoogleEvent,
   } = useAuth()
   const [editingEvent, setEditingEvent] = useState(null)
   const [showGenerate, setShowGenerate] = useState(false)
@@ -123,9 +124,12 @@ export default function Home() {
     setGoogleLoading(true)
     try {
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-      const toExport = events.filter(e => !e.googleEventId)
+      const newEvents = events.filter(e => !e.googleEventId)
+      const rescheduledEvents = events.filter(e => e.googleEventId)
       let exported = 0
-      for (const event of toExport) {
+      let updated = 0
+
+      for (const event of newEvents) {
         const created = await createGoogleEvent({
           summary: event.title,
           description: 'Exported from StudySync',
@@ -136,10 +140,24 @@ export default function Home() {
         await updateEvent(event.id, { googleEventId: created.id })
         exported += 1
       }
-      if (exported === 0) {
-        setGoogleMessage('All events have already been exported to Google Calendar.')
+
+      for (const event of rescheduledEvents) {
+        await updateGoogleEvent(event.googleEventId, {
+          summary: event.title,
+          start: { dateTime: `${event.date}T${event.startTime}:00`, timeZone },
+          end: { dateTime: `${event.date}T${event.endTime}:00`, timeZone },
+          extendedProperties: { private: { studysync_type: event.type } },
+        })
+        updated += 1
+      }
+
+      if (exported === 0 && updated === 0) {
+        setGoogleMessage('No events to export.')
       } else {
-        setGoogleMessage(`Exported ${exported} new event${exported !== 1 ? 's' : ''} to Google Calendar.`)
+        const parts = []
+        if (exported > 0) parts.push(`Exported ${exported} new event${exported !== 1 ? 's' : ''}`)
+        if (updated > 0) parts.push(`updated ${updated} rescheduled event${updated !== 1 ? 's' : ''}`)
+        setGoogleMessage(parts.join(', ') + ' on Google Calendar.')
       }
     } catch (error) {
       setGoogleMessage(error.message || 'Export to Google failed')

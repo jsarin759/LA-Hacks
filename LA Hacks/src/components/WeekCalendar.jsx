@@ -12,7 +12,7 @@ const TYPE_COLORS = {
   class:    { bg: '#6366f1', text: '#fff' },
   study:    { bg: '#10b981', text: '#fff' },
   work:     { bg: '#f59e0b', text: '#fff' },
-  personal: { bg: '#8b5cf6', text: '#fff' },
+  personal: { bg: '#ef4444', text: '#fff' },
 }
 
 function timeToMinutes(t) {
