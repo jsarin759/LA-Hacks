@@ -58,7 +58,6 @@ export default function GenerateModal({ onClose }) {
     setIsGenerating(true)
 
     try {
-      // Only pass events from the target week as conflicts
       const weekDateStrs = new Set(weekDates.map(toDateString))
       const weekEvents = events.filter(ev => weekDateStrs.has(ev.date))
 

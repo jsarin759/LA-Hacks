@@ -1,7 +1,9 @@
 import { Router } from 'express'
 import { generateStudyScheduleWithGemini } from '../services/gemini.js'
 import { generateLocalStudySchedule } from '../services/localSchedule.js'
+import { generateFlashcardsWithGemini } from '../services/flashcards.js'
 import { validateScheduleInput } from '../utils/validateScheduleInput.js'
+import { validateFlashcardInput } from '../utils/validateFlashcardsInput.js'
 
 export const scheduleRouter = Router()
 
@@ -31,6 +33,29 @@ scheduleRouter.post('/generate-schedule', async (req, res, next) => {
       )
       console.log(`[schedule] completed via local-fallback with ${fallbackSchedule.length} sessions`)
       return res.json({ schedule: fallbackSchedule, source: 'local-fallback' })
+    }
+  } catch (error) {
+    next(error)
+  }
+})
+
+scheduleRouter.post('/generate-flashcards', async (req, res, next) => {
+  try {
+    const { valid, error, value } = validateFlashcardInput(req.body)
+
+    if (!valid) {
+      return res.status(400).json({ error })
+    }
+
+    console.log(`[flashcards] generating for ${value.subjects.length} subjects`)
+
+    try {
+      const flashcards = await generateFlashcardsWithGemini(value)
+      console.log(`[flashcards] completed via gemini with ${flashcards.length} subject groups`)
+      return res.json({ flashcards, source: 'gemini' })
+    } catch (generationError) {
+      console.warn('Gemini flashcard generation failed, using local fallback:', generationError.message)
+      return res.json({ flashcards: [], source: 'local-fallback' })
     }
   } catch (error) {
     next(error)

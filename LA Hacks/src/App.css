@@ -440,6 +440,10 @@
 }
 .modal-actions-right { display: flex; gap: 8px; }
 
+.modal-section {
+  padding: 16px 0;
+}
+
 /* ── Generate Modal ── */
 .generate-body {
   display: flex;
@@ -568,6 +572,78 @@
   text-align: center;
   color: var(--muted);
   font-size: 13px;
+}
+
+.flashcard-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.flashcard-group {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(99,102,241,0.04), rgba(99,102,241,0.01));
+}
+
+.flashcard-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.flashcard-group-header span:last-child {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.flashcard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.flashcard-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.flashcard-label {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+}
+
+.flashcard-label-back {
+  margin-top: 8px;
+  color: var(--success);
+}
+
+.flashcard-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.flashcard-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 /* ── Schedule List Page ── */
