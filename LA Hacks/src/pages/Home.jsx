@@ -4,10 +4,12 @@ import WeekCalendar from '../components/WeekCalendar'
 import EventModal from '../components/EventModal'
 import GenerateModal from '../components/GenerateModal'
 import { useSchedule } from '../context/ScheduleContext'
+import { useAuth } from '../context/AuthContext'
 
 export default function Home() {
   const navigate = useNavigate()
   const { addEvent, updateEvent, removeEvent } = useSchedule()
+  const { user, signOut } = useAuth()
   const [editingEvent, setEditingEvent] = useState(null)
   const [showGenerate, setShowGenerate] = useState(false)
 
@@ -33,12 +35,14 @@ export default function Home() {
           <span className="app-subtitle">Click a slot to add · Drag events to reschedule</span>
         </div>
         <div className="header-actions">
+          <span className="header-email">{user?.email}</span>
           <button className="btn-secondary" onClick={() => navigate('/schedule')}>
             Manage Schedule
           </button>
           <button className="btn-primary" onClick={() => setShowGenerate(true)}>
             ✦ Generate Study Plan
           </button>
+          <button className="btn-signout" onClick={signOut}>Sign Out</button>
         </div>
       </header>
 
