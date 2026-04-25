@@ -94,7 +94,7 @@ export async function generateFlashcardsWithGemini({ subjects }) {
   }
 
   try {
-    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+    const model = process.env.GEMINI_MODEL || 'gemini-3-flash-preview'
     const prompt = buildPrompt({ subjects: normalizedSubjects })
 
     const response = await fetch(

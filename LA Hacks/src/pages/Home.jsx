@@ -4,6 +4,7 @@ import WeekCalendar from '../components/WeekCalendar'
 import EventModal from '../components/EventModal'
 import GenerateModal from '../components/GenerateModal'
 import FlashcardModal from '../components/FlashcardModal'
+import PracticeTestModal from '../components/PracticeTestModal'
 import { useSchedule } from '../context/ScheduleContext'
 import { useAuth } from '../context/AuthContext'
 
@@ -48,6 +49,7 @@ export default function Home() {
   const [editingEvent, setEditingEvent] = useState(null)
   const [showGenerate, setShowGenerate] = useState(false)
   const [showFlashcards, setShowFlashcards] = useState(false)
+  const [showPracticeTests, setShowPracticeTests] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleMessage, setGoogleMessage] = useState('')
   const [googleMenuOpen, setGoogleMenuOpen] = useState(false)
@@ -250,6 +252,9 @@ export default function Home() {
           <button className="btn-secondary" onClick={() => setShowFlashcards(true)}>
             📚 Flashcards
           </button>
+          <button className="btn-secondary" onClick={() => setShowPracticeTests(true)}>
+            📝 Practice Tests
+          </button>
           <button className="btn-primary" onClick={() => setShowGenerate(true)}>
             ✦ Generate Study Plan
           </button>
@@ -279,6 +284,8 @@ export default function Home() {
       {showGenerate && <GenerateModal onClose={() => setShowGenerate(false)} />}
 
       {showFlashcards && <FlashcardModal onClose={() => setShowFlashcards(false)} />}
+
+      {showPracticeTests && <PracticeTestModal onClose={() => setShowPracticeTests(false)} />}
     </div>
   )
 }

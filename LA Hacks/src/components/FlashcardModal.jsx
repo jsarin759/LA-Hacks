@@ -9,6 +9,7 @@ export default function FlashcardModal({ onClose }) {
   const [error, setError] = useState('')
   const [currentCardIndex, setCurrentCardIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
+  const [showEndScreen, setShowEndScreen] = useState(false)
 
   const handleGenerate = async () => {
     if (!subject.trim()) {
@@ -30,6 +31,7 @@ export default function FlashcardModal({ onClose }) {
       setFlashcards(result)
       setCurrentCardIndex(0)
       setIsFlipped(false)
+      setShowEndScreen(false)
     } catch (err) {
       setError(err?.message || 'Failed to generate flashcards')
     } finally {
@@ -44,6 +46,7 @@ export default function FlashcardModal({ onClose }) {
     setError('')
     setCurrentCardIndex(0)
     setIsFlipped(false)
+    setShowEndScreen(false)
   }
 
   const handleClose = () => {
@@ -54,7 +57,12 @@ export default function FlashcardModal({ onClose }) {
   const handleNextCard = () => {
     if (flashcards && flashcards.length > 0) {
       const totalCards = flashcards.reduce((sum, group) => sum + group.cards.length, 0)
-      setCurrentCardIndex((prev) => (prev + 1) % totalCards)
+      if (currentCardIndex >= totalCards - 1) {
+        setShowEndScreen(true)
+        return
+      }
+
+      setCurrentCardIndex((prev) => prev + 1)
       setIsFlipped(false)
     }
   }
@@ -62,7 +70,14 @@ export default function FlashcardModal({ onClose }) {
   const handlePrevCard = () => {
     if (flashcards && flashcards.length > 0) {
       const totalCards = flashcards.reduce((sum, group) => sum + group.cards.length, 0)
-      setCurrentCardIndex((prev) => (prev - 1 + totalCards) % totalCards)
+      if (showEndScreen) {
+        setShowEndScreen(false)
+        setCurrentCardIndex(Math.max(totalCards - 1, 0))
+        setIsFlipped(false)
+        return
+      }
+
+      setCurrentCardIndex((prev) => Math.max(prev - 1, 0))
       setIsFlipped(false)
     }
   }
@@ -86,6 +101,10 @@ export default function FlashcardModal({ onClose }) {
 
   const currentCard = getCurrentCard()
   const totalCards = getTotalCards()
+
+  const generationPrompt = subject.trim()
+    ? `${subject.trim()}${topic.trim() ? ` · ${topic.trim()}` : ''}`
+    : 'No generation prompt available'
 
   return (
     <div className="modal-overlay" onClick={handleClose}>
@@ -146,6 +165,42 @@ export default function FlashcardModal({ onClose }) {
                 </p>
               </section>
             </>
+          ) : showEndScreen ? (
+            <section style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--muted)', margin: '0 0 16px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.06em' }}>
+                Flashcards Ended
+              </p>
+
+              <div
+                className="flashcard-viewer"
+                style={{
+                  minHeight: '280px',
+                  background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.02))',
+                  border: '2px solid var(--border)',
+                  borderRadius: '16px',
+                  padding: '40px 32px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginBottom: '24px',
+                  textAlign: 'center',
+                }}
+              >
+                <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '16px' }}>
+                  Generation Prompt
+                </span>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text)', margin: '0 0 12px', lineHeight: '1.4' }}>
+                  You&apos;ve reached the end of the flashcards.
+                </p>
+                <p style={{ fontSize: '15px', color: 'var(--muted)', margin: '0', lineHeight: '1.6', maxWidth: '420px' }}>
+                  {generationPrompt}
+                </p>
+                <span style={{ marginTop: '24px', fontSize: '12px', color: 'var(--muted)', fontWeight: '600' }}>
+                  Use Generate More to create a new set or go back to review the last card.
+                </span>
+              </div>
+            </section>
           ) : (
             <>
               <section style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -227,12 +282,13 @@ export default function FlashcardModal({ onClose }) {
             {flashcards ? 'Close' : 'Cancel'}
           </button>
           <div className="modal-actions-right">
-            {flashcards && totalCards > 0 && (
+            {flashcards && totalCards > 0 && !showEndScreen && (
               <>
                 <button
                   type="button"
                   className="btn-secondary"
                   onClick={handlePrevCard}
+                  disabled={currentCardIndex === 0}
                   style={{ padding: '8px 12px', fontSize: '13px' }}
                 >
                   ← Previous
@@ -246,6 +302,16 @@ export default function FlashcardModal({ onClose }) {
                   Next →
                 </button>
               </>
+            )}
+            {showEndScreen && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handlePrevCard}
+                style={{ padding: '8px 12px', fontSize: '13px' }}
+              >
+                ← Review Last Card
+              </button>
             )}
             {flashcards && (
               <button className="btn-secondary" type="button" onClick={handleReset}>
