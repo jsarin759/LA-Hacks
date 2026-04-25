@@ -10,6 +10,8 @@ export default function GenerateModal({ onClose }) {
   const [timeRange, setTimeRange] = useState({ start: '09:00', end: '18:00' })
   const [selectedDays, setSelectedDays] = useState([1, 2, 3, 4, 5])
   const [preview, setPreview] = useState(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState('')
 
   const addSubject = () => setSubjects(s => [...s, { name: '', hours: 2 }])
   const removeSubject = (i) => setSubjects(s => s.filter((_, idx) => idx !== i))
@@ -21,10 +23,22 @@ export default function GenerateModal({ onClose }) {
       prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort((a, b) => a - b)
     )
 
-  const handlePreview = () => {
+  const handlePreview = async () => {
     const valid = subjects.filter(s => s.name.trim())
-    if (!valid.length) return
-    setPreview(generateStudySchedule(events, valid, timeRange, selectedDays))
+    if (!valid.length || isGenerating) return
+
+    setError('')
+    setIsGenerating(true)
+
+    try {
+      const result = await generateStudySchedule(events, valid, timeRange, selectedDays)
+      setPreview(result)
+    } catch (err) {
+      setPreview(null)
+      setError(err?.message || 'Failed to generate a schedule')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const handleConfirm = () => {
@@ -70,6 +84,8 @@ export default function GenerateModal({ onClose }) {
             ))}
             <button className="btn-ghost" type="button" onClick={addSubject}>+ Add Subject</button>
           </section>
+
+          {error && <p className="form-error">{error}</p>}
 
           <section>
             <h3>Preferred Study Hours</h3>
@@ -131,8 +147,8 @@ export default function GenerateModal({ onClose }) {
         <div className="modal-actions">
           <button className="btn-secondary" type="button" onClick={onClose}>Cancel</button>
           <div className="modal-actions-right">
-            <button className="btn-secondary" type="button" onClick={handlePreview}>
-              Preview
+            <button className="btn-secondary" type="button" onClick={handlePreview} disabled={isGenerating}>
+              {isGenerating ? 'Generating...' : 'Preview'}
             </button>
             {preview !== null && preview.length > 0 && (
               <button className="btn-primary" type="button" onClick={handleConfirm}>

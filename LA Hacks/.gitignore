@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Backend artifacts
+server/node_modules
+server/.env
+server/.env.*
+!server/.env.example
+server/dist

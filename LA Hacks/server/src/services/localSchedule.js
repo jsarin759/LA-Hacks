@@ -1,5 +1,3 @@
-const DEFAULT_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number)
   return h * 60 + m
@@ -31,7 +29,7 @@ function findFreeSlots(busyPeriods, rangeStart, rangeEnd) {
   return free.filter(s => s.end - s.start >= 30)
 }
 
-function generateLocalFallback(existingEvents, subjects, timeRange, selectedDays) {
+export function generateLocalStudySchedule(existingEvents, subjects, timeRange, selectedDays) {
   const rangeStart = timeToMinutes(timeRange.start)
   const rangeEnd = timeToMinutes(timeRange.end)
   const generated = []
@@ -67,23 +65,4 @@ function generateLocalFallback(existingEvents, subjects, timeRange, selectedDays
   }
 
   return generated
-}
-
-export async function generateStudySchedule(existingEvents, subjects, timeRange, selectedDays) {
-  try {
-    const response = await fetch(`${DEFAULT_API_URL}/api/generate-schedule`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ existingEvents, subjects, timeRange, selectedDays }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Schedule request failed: ${response.status}`)
-    }
-
-    const data = await response.json()
-    return Array.isArray(data.schedule) ? data.schedule : []
-  } catch {
-    return generateLocalFallback(existingEvents, subjects, timeRange, selectedDays)
-  }
 }
