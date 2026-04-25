@@ -58,7 +58,7 @@ export async function generateStudyScheduleWithGemini({ existingEvents, subjects
     throw new Error('Missing GEMINI_API_KEY')
   }
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
   const prompt = buildPrompt({ existingEvents, subjects, timeRange, selectedDays })
 
   const response = await fetch(
@@ -90,6 +90,7 @@ export async function generateStudyScheduleWithGemini({ existingEvents, subjects
 
   const parsed = extractJson(text)
   const schedule = Array.isArray(parsed.schedule) ? parsed.schedule.map(normalizeScheduleItem) : []
+  console.log(`[gemini] success using ${model}: generated ${schedule.length} sessions`)
 
   return schedule.filter(item => {
     const start = toMinutes(item.startTime)
