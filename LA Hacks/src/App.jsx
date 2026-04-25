@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import GoogleCallback from './pages/GoogleCallback'
 import './App.css'
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/callback" element={<GoogleCallback />} />
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/schedule" element={<ScheduleInput />} />

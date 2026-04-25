@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { scheduleRouter } from './routes/schedule.js'
+import { googleCalendarRouter } from './routes/googleCalendar.js'
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -14,10 +15,12 @@ app.get('/health', (_req, res) => {
 })
 
 app.use('/api', scheduleRouter)
+app.use('/api/google', googleCalendarRouter)
 
 app.use((err, _req, res, _next) => {
   console.error(err)
-  res.status(500).json({ error: 'Internal server error' })
+  const status = err.statusCode || 500
+  res.status(status).json({ error: err.message || 'Internal server error' })
 })
 
 app.listen(port, () => {

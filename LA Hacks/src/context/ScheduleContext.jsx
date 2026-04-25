@@ -88,12 +88,44 @@ export function ScheduleProvider({ children }) {
     await supabase.from('events').delete().eq('id', id)
   }
 
+  const replaceAllEvents = async (eventsToSet) => {
+    const userId = await getUserId()
+    if (!userId) return
+
+    const { error: deleteError } = await supabase
+      .from('events')
+      .delete()
+      .eq('user_id', userId)
+
+    if (deleteError) {
+      console.error('replaceAllEvents delete failed:', deleteError.message)
+      return
+    }
+
+    if (!Array.isArray(eventsToSet) || eventsToSet.length === 0) {
+      setEvents([])
+      return
+    }
+
+    const { data, error: insertError } = await supabase
+      .from('events')
+      .insert(eventsToSet.map(e => ({ ...toDB(e), user_id: userId })))
+      .select()
+
+    if (insertError) {
+      console.error('replaceAllEvents insert failed:', insertError.message)
+      return
+    }
+
+    setEvents(data.map(fromDB))
+  }
+
   const clearGeneratedEvents = async () => {
     setEvents(prev => prev.filter(e => !e.generated))
   }
 
   return (
-    <ScheduleContext.Provider value={{ events, loading, addEvent, addEvents, updateEvent, removeEvent, clearGeneratedEvents }}>
+    <ScheduleContext.Provider value={{ events, loading, addEvent, addEvents, updateEvent, removeEvent, replaceAllEvents, clearGeneratedEvents }}>
       {children}
     </ScheduleContext.Provider>
   )
