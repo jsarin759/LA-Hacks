@@ -51,10 +51,10 @@ googleCalendarRouter.post('/exchange', async (req, res, next) => {
   }
 })
 
-googleCalendarRouter.get('/status', (req, res, next) => {
+googleCalendarRouter.get('/status', async (req, res, next) => {
   try {
     const userId = getRequiredUserId(req)
-    res.json({ connected: isGoogleConnected(userId) })
+    res.json({ connected: await isGoogleConnected(userId) })
   } catch (error) {
     next(error)
   }
